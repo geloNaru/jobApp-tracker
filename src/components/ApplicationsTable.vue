@@ -1,8 +1,53 @@
 <!-- filepath: c:\Users\Angelo\Desktop\jobApp-tracker\src\components\ApplicationsTable.vue -->
 <template>
   <div class="table-container">
+    <div class="filter-section">
+      <el-row :gutter="16">
+        <el-col :span="6">
+          <el-input
+            v-model="filters.search"
+            placeholder="Search company, position..."
+            clearable
+            prefix-icon="Search"
+          />
+        </el-col>
+        <el-col :span="4">
+          <el-select v-model="filters.status" placeholder="Status" clearable>
+            <el-option label="All" value="" />
+            <el-option label="Applied" value="Applied" />
+            <el-option label="Screening" value="Screening" />
+            <el-option label="Interview Scheduled" value="Interview Scheduled" />
+            <el-option label="Offer" value="Offer" />
+            <el-option label="Rejected" value="Rejected" />
+            <el-option label="Withdrawn" value="Withdrawn" />
+          </el-select>
+        </el-col>
+        <el-col :span="4">
+          <el-select v-model="filters.priority" placeholder="Priority" clearable>
+            <el-option label="All" value="" />
+            <el-option label="High" value="High" />
+            <el-option label="Medium" value="Medium" />
+            <el-option label="Low" value="Low" />
+          </el-select>
+        </el-col>
+        <el-col :span="6">
+          <el-date-picker
+            v-model="filters.dateRange"
+            type="daterange"
+            range-separator="To"
+            start-placeholder="Start date"
+            end-placeholder="End date"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+          />
+        </el-col>
+        <el-col style="padding-left: 80px" :span="4">
+          <el-button @click="clearFilters">Clear Filters</el-button>
+        </el-col>
+      </el-row>
+    </div>
     <el-table
-      :data="applications"
+      :data="filteredApplications"
       style="width: 100%"
       :default-sort="{ prop: 'applicationDate', order: 'descending' }"
       stripe
@@ -88,10 +133,11 @@
   </div>
 </template>
 <script setup lang="ts">
+import { computed, reactive } from 'vue'
 import { Delete, Edit } from '@element-plus/icons-vue'
 import type { Application } from '@/stores/jobApplications'
 
-defineProps<{
+const props = defineProps<{
   applications: Application[]
 }>()
 
@@ -100,6 +146,56 @@ defineEmits<{
   delete: [id: string]
 }>()
 
+const filters = reactive({
+  search: '',
+  status: '',
+  priority: '',
+  dateRange: null as [string, string] | null,
+})
+
+// Add computed property for filtered data
+const filteredApplications = computed(() => {
+  let filtered = props.applications
+
+  // Search filter (company, position, location)
+  if (filters.search) {
+    const searchLower = filters.search.toLowerCase()
+    filtered = filtered.filter(
+      (app) =>
+        app.company.toLowerCase().includes(searchLower) ||
+        app.position.toLowerCase().includes(searchLower) ||
+        app.location.toLowerCase().includes(searchLower),
+    )
+  }
+
+  // Status filter
+  if (filters.status) {
+    filtered = filtered.filter((app) => app.status === filters.status)
+  }
+
+  // Priority filter
+  if (filters.priority) {
+    filtered = filtered.filter((app) => app.priority === filters.priority)
+  }
+
+  // Date range filter
+  if (filters.dateRange && filters.dateRange[0] && filters.dateRange[1]) {
+    const [startDate, endDate] = filters.dateRange
+    filtered = filtered.filter((app) => {
+      if (!app.applicationDate) return false
+      const appDate = new Date(app.applicationDate).toISOString().split('T')[0]
+      return appDate >= startDate && appDate <= endDate
+    })
+  }
+
+  return filtered
+})
+function clearFilters() {
+  filters.search = ''
+  filters.status = ''
+  filters.priority = ''
+  filters.dateRange = null
+}
 function formatDate(dateStr: string) {
   if (!dateStr) return '-'
   const date = new Date(dateStr)
@@ -192,6 +288,19 @@ function getSourceDisplayText(url: string): string {
 </script>
 
 <style scoped>
+.filter-section {
+  padding: 20px;
+  background: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+  margin-bottom: 0;
+}
+
+.table-container {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
 .table-container {
   background: white;
   border-radius: 12px;
